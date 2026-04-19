@@ -32,7 +32,11 @@ body{background:#080c14;font-family:'DM Mono','Courier New',monospace;color:#c9d
 .dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:5px;vertical-align:middle}
 .conf{padding:6px 0;font-size:11px;border-bottom:1px solid #1a2e4a}
 .tip{margin-top:10px;background:rgba(91,155,213,.08);border:1px solid #1a2e4a;border-radius:6px;padding:10px;font-size:10px;color:#5b9bd5}
+.tip-warn{margin-top:10px;background:rgba(245,158,11,.08);border:1px solid #f59e0b;border-radius:6px;padding:10px;font-size:10px;color:#f59e0b}
 .warn{margin-top:10px;background:rgba(239,68,68,.1);border:1px solid #ef4444;border-radius:6px;padding:10px;font-size:10px;color:#ef4444}
+.badge{border-radius:6px;padding:3px 8px;font-size:9px;font-weight:700;letter-spacing:1px;display:inline-block;margin-bottom:6px}
+.badge-a{background:rgba(34,197,94,.2);color:#22c55e;border:1px solid #22c55e}
+.badge-b{background:rgba(245,158,11,.2);color:#f59e0b;border:1px solid #f59e0b}
 </style>
 </head>
 <body>
@@ -79,24 +83,38 @@ function str(c){
   for(let i=1;i<6;i++){if(H[i]>H[i-1])hh++;if(L[i]>L[i-1])hl++;if(L[i]<L[i-1])ll++;if(H[i]<H[i-1])lh++;}
   if(hh>=2&&hl>=2)return"BULLISH";if(ll>=2&&lh>=2)return"BEARISH";return"RANGE";
 }
-function vol(c){if(c.length<6)return false;const v=c.map(x=>+x.volume||0);const avg=v.slice(1,11).reduce((a,b)=>a+b,0)/10;return v[0]>avg*1.15;}
-function cOk(c){const b=Math.abs(+c.close- +c.open),r=+c.high- +c.low;return r>0&&b/r>0.45;}
+// SETUP A: volume > 1.15x, bougie > 45%
+function volA(c){if(c.length<6)return false;const v=c.map(x=>+x.volume||0);const avg=v.slice(1,11).reduce((a,b)=>a+b,0)/10;return v[0]>avg*1.15;}
+function cOkA(c){const b=Math.abs(+c.close- +c.open),r=+c.high- +c.low;return r>0&&b/r>0.45;}
+// SETUP B: volume > 1.05x, bougie > 35%
+function volB(c){if(c.length<6)return false;const v=c.map(x=>+x.volume||0);const avg=v.slice(1,11).reduce((a,b)=>a+b,0)/10;return v[0]>avg*1.05;}
+function cOkB(c){const b=Math.abs(+c.close- +c.open),r=+c.high- +c.low;return r>0&&b/r>0.35;}
 
 function sig(c){
   if(!c||c.length<12)return null;
-  const p=+c[0].close,V=vwap(c),A=atr(c),S=str(c),vo=vol(c),co=cOk(c[0]),ab=p>V;
+  const p=+c[0].close,V=vwap(c),A=atr(c),S=str(c);
+  const voA=volA(c),coA=cOkA(c[0]);
+  const voB=volB(c),coB=cOkB(c[0]);
+  const ab=p>V;
   const rec=c.slice(1,11),rH=Math.max(...rec.map(x=>+x.high)),rL=Math.min(...rec.map(x=>+x.low));
   const fB=+c[1].high>rH&&p<rH-A*.1,fb=+c[1].low<rL&&p>rL+A*.1;
   const bB=p>rH-A*.05&&!fB,bS=p<rL+A*.05&&!fb;
-  let d=null,m=null,cf=[];
-  if(fB){d="SELL";m="B";cf=[{ok:true,l:"✅ Fausse cassure haussière détectée"},{ok:true,l:"✅ Rejet au-dessus du niveau clé"},{ok:vo,l:vo?"✅ Volume présent sur le rejet":"⚠️ Volume faible — prudence"},{ok:!ab,l:!ab?"✅ VWAP bias vendeur confirmé":"⚠️ VWAP encore au-dessus"}];}
-  else if(fb){d="BUY";m="B";cf=[{ok:true,l:"✅ Fausse cassure baissière détectée"},{ok:true,l:"✅ Rejet en dessous du niveau clé"},{ok:vo,l:vo?"✅ Volume présent sur le rejet":"⚠️ Volume faible — prudence"},{ok:ab,l:ab?"✅ VWAP bias acheteur confirmé":"⚠️ VWAP encore en dessous"}];}
-  else if(bB){d="BUY";m="A";cf=[{ok:ab,l:ab?"✅ VWAP — Au-dessus (bias acheteur)":"❌ VWAP — En dessous"},{ok:S==="BULLISH",l:S==="BULLISH"?"✅ Structure HH/HL haussière":"❌ Structure — Pas haussière"},{ok:vo,l:vo?"✅ Volume croissant sur la cassure":"❌ Volume — Insuffisant"},{ok:co,l:co?"✅ Bougie propre — Corps plein":"❌ Bougie — Mèches importantes"}];}
-  else if(bS){d="SELL";m="A";cf=[{ok:!ab,l:!ab?"✅ VWAP — En dessous (bias vendeur)":"❌ VWAP — Au-dessus"},{ok:S==="BEARISH",l:S==="BEARISH"?"✅ Structure LH/LL baissière":"❌ Structure — Pas baissière"},{ok:vo,l:vo?"✅ Volume croissant sur la cassure":"❌ Volume — Insuffisant"},{ok:co,l:co?"✅ Bougie propre — Corps plein":"❌ Bougie — Mèches importantes"}];}
+  let d=null,cf=[];
+
+  if(fB){d="SELL";cf=[{ok:true,l:"✅ Fausse cassure haussière"},{ok:true,l:"✅ Rejet niveau clé"},{ok:voA,okB:voB,l:voA?"✅ Volume fort sur rejet":voB?"🟡 Volume modéré sur rejet":"❌ Volume insuffisant"},{ok:!ab,l:!ab?"✅ VWAP bias vendeur":"❌ VWAP pas aligné"}];}
+  else if(fb){d="BUY";cf=[{ok:true,l:"✅ Fausse cassure baissière"},{ok:true,l:"✅ Rejet niveau clé"},{ok:voA,okB:voB,l:voA?"✅ Volume fort sur rejet":voB?"🟡 Volume modéré sur rejet":"❌ Volume insuffisant"},{ok:ab,l:ab?"✅ VWAP bias acheteur":"❌ VWAP pas aligné"}];}
+  else if(bB){d="BUY";cf=[{ok:ab,l:ab?"✅ VWAP — Au-dessus":"❌ VWAP — En dessous"},{ok:S==="BULLISH",l:S==="BULLISH"?"✅ Structure HH/HL":"❌ Structure pas haussière"},{ok:voA,okB:voB,l:voA?"✅ Volume fort cassure":voB?"🟡 Volume modéré":"❌ Volume insuffisant"},{ok:coA,okB:coB,l:coA?"✅ Bougie propre corps plein":coB?"🟡 Bougie acceptable":"❌ Trop de mèches"}];}
+  else if(bS){d="SELL";cf=[{ok:!ab,l:!ab?"✅ VWAP — En dessous":"❌ VWAP — Au-dessus"},{ok:S==="BEARISH",l:S==="BEARISH"?"✅ Structure LH/LL":"❌ Structure pas baissière"},{ok:voA,okB:voB,l:voA?"✅ Volume fort cassure":voB?"🟡 Volume modéré":"❌ Volume insuffisant"},{ok:coA,okB:coB,l:coA?"✅ Bougie propre corps plein":coB?"🟡 Bougie acceptable":"❌ Trop de mèches"}];}
+
   if(!d)return null;
-  const v=cf.filter(x=>x.ok).length;if(v<3)return null;
-  const sl=A*1.5,tp=sl*1.5;
-  return{d,m,cf,v,p,V,sl:d==="BUY"?p-sl:p+sl,tp:d==="BUY"?p+tp:p-tp};
+
+  // Compter confirmations A (critères stricts) et B (critères souples)
+  const validA=cf.filter(x=>x.ok).length;
+  const validB=cf.filter(x=>x.ok||(x.okB&&!x.ok)).length;
+
+  if(validA>=3)return{d,grade:"A",valid:validA,cf,p,V,sl:A*1.5,tp:A*1.5*1.5};
+  if(validB>=2)return{d,grade:"B",valid:validB,cf,p,V,sl:A*1.5,tp:A*1.5*1.5};
+  return null;
 }
 
 async function load(k){
@@ -105,12 +123,11 @@ async function load(k){
     const url=`/api/proxy?symbol=${encodeURIComponent(inst.sym)}&interval=15min&outputsize=30&apikey=${K}`;
     const r=await fetch(url);
     const j=await r.json();
-    if(j.status==="error"||!j.values)throw new Error(j.message||"Erreur API Twelve Data");
+    if(j.status==="error"||!j.values)throw new Error(j.message||"Erreur API");
     const c=j.values;
     md[k]={p:+c[0].close,V:vwap(c),S:str(c),A:atr(c),sg:sig(c)};
     er[k]=null;
-    const on=inS(inst.sess);
-    document.getElementById(inst.dot).style.background=on?"#22c55e":"#ef4444";
+    document.getElementById(inst.dot).style.background=inS(inst.sess)?"#22c55e":"#ef4444";
   }catch(e){er[k]=e.message;}
   ld[k]=false;
   document.getElementById('upd').textContent=`Màj: ${new Date().toLocaleTimeString('fr-BE')} · Auto 3min`;
@@ -125,9 +142,9 @@ function setTab(k){
 
 function render(){
   const inst=INST[cur],d=md[cur],on=inS(inst.sess),dec=inst.dec;
-  const G="#22c55e",R="#ef4444",B="#7ec8ff",D="#3a5878";
-  let h=`
-  <div class="sess ${on?'on':'off'}">
+  const G="#22c55e",R="#ef4444",O="#f59e0b",B="#7ec8ff",D="#3a5878";
+
+  let h=`<div class="sess ${on?'on':'off'}">
     <div>
       <div class="lbl">Session ${inst.name}</div>
       <div style="font-weight:700;color:${on?G:R};font-size:12px">${on?"🟢 ACTIVE — TRADING AUTORISÉ":`🔴 FERMÉE — ${nxtS(inst.sess).toUpperCase()}`}</div>
@@ -142,7 +159,7 @@ function render(){
   if(ld[cur]&&!d)h+=`<div style="text-align:center;padding:40px;color:${D}">↻ Connexion aux marchés...</div>`;
 
   if(d){
-    const sc=d.S==="BULLISH"?G:d.S==="BEARISH"?R:"#f59e0b";
+    const sc=d.S==="BULLISH"?G:d.S==="BEARISH"?R:O;
     const vc=d.p>d.V?G:R;
     h+=`<div class="g3">
       <div class="card"><div class="lbl">Prix M15</div><div style="font-size:18px;font-weight:700;color:${B}">${f(d.p,dec)}</div></div>
@@ -151,28 +168,42 @@ function render(){
     </div>`;
 
     if(d.sg){
-      const s=d.sg,buy=s.d==="BUY",dc=buy?G:R;
-      h+=`<div class="sig-box" style="background:${buy?"rgba(34,197,94,.07)":"rgba(239,68,68,.07)"};border:2px solid ${dc}">
+      const s=d.sg,buy=s.d==="BUY";
+      const isA=s.grade==="A";
+      const dc=buy?G:R;
+      const borderColor=isA?dc:O;
+      const bgColor=isA?(buy?"rgba(34,197,94,.07)":"rgba(239,68,68,.07)"):"rgba(245,158,11,.07)";
+
+      h+=`<div class="sig-box" style="background:${bgColor};border:2px solid ${borderColor}">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
           <div>
-            <div style="font-size:8px;color:${D};letter-spacing:2px;margin-bottom:3px">SIGNAL · MODE ${s.m} · ${s.v}/4 CONFIRMATIONS</div>
-            <div style="font-size:28px;font-weight:700;color:${dc}">${buy?"⬆ BUY":"⬇ SELL"}</div>
-            <div style="font-size:10px;color:${D};margin-top:2px">${s.m==="A"?"Breakout confirmé":"Fausse cassure — Retournement"}</div>
+            <span class="badge ${isA?'badge-a':'badge-b'}">${isA?"✅ SETUP A — CONFIRMÉ":"🟡 SETUP B — À SURVEILLER"}</span>
+            <div style="font-size:28px;font-weight:700;color:${isA?dc:O}">${buy?"⬆ BUY":"⬇ SELL"}</div>
+            <div style="font-size:10px;color:${D};margin-top:2px">${s.valid}/4 confirmations · ${isA?"Entrée possible":"Surveiller — décision à toi"}</div>
           </div>
-          <div style="background:${on?"rgba(34,197,94,.15)":"rgba(239,68,68,.15)"};border:1px solid ${on?G:R};border-radius:8px;padding:6px 10px;font-size:10px;color:${on?G:R}">${on?"✅ En session":"⚠️ Hors session"}</div>
+          <div style="background:${on?"rgba(34,197,94,.15)":"rgba(239,68,68,.15)"};border:1px solid ${on?G:R};border-radius:8px;padding:6px 10px;font-size:10px;color:${on?G:R};text-align:center">${on?"✅ En session":"⚠️ Hors session"}</div>
         </div>
+
         <div class="g3">
           <div style="background:#080c14;border-radius:8px;padding:10px;text-align:center"><div class="lbl">Entrée</div><div style="font-size:16px;font-weight:700;color:${B}">${f(s.p,dec)}</div></div>
-          <div style="background:#080c14;border-radius:8px;padding:10px;text-align:center"><div class="lbl" style="color:${R}">Stop Loss</div><div style="font-size:16px;font-weight:700;color:${R}">${f(s.sl,dec)}</div></div>
-          <div style="background:#080c14;border-radius:8px;padding:10px;text-align:center"><div class="lbl" style="color:${G}">Take Profit</div><div style="font-size:16px;font-weight:700;color:${G}">${f(s.tp,dec)}</div></div>
+          <div style="background:#080c14;border-radius:8px;padding:10px;text-align:center"><div class="lbl" style="color:${R}">Stop Loss</div><div style="font-size:16px;font-weight:700;color:${R}">${f(s.d==="BUY"?s.p-s.sl:s.p+s.sl,dec)}</div></div>
+          <div style="background:#080c14;border-radius:8px;padding:10px;text-align:center"><div class="lbl" style="color:${G}">Take Profit</div><div style="font-size:16px;font-weight:700;color:${G}">${f(s.d==="BUY"?s.p+s.tp:s.p-s.tp,dec)}</div></div>
         </div>
+
         <div style="margin-top:14px"><div class="lbl" style="margin-bottom:6px">Confirmations</div>
-        ${s.cf.map(c=>`<div class="conf" style="color:${c.ok?G:c.l.startsWith("⚠️")?"#f59e0b":R}">${c.l}</div>`).join('')}</div>
-        ${!on?`<div class="warn">⚠️ Signal hors fenêtre — Attends la session pour exécuter sur TradeLocker</div>`:""}
-        <div class="tip">💡 Exécution manuelle sur TradeLocker — Place le SL EN PREMIER toujours</div>
+        ${s.cf.map(c=>{
+          const color=c.ok?G:c.l.startsWith("🟡")?O:R;
+          return`<div class="conf" style="color:${color}">${c.l}</div>`;
+        }).join('')}</div>
+
+        ${!on?`<div class="warn">⚠️ Hors fenêtre — Attends la session pour exécuter</div>`:""}
+        ${isA
+          ?`<div class="tip">💡 Setup A confirmé — Exécute sur TradeLocker · SL EN PREMIER</div>`
+          :`<div class="tip-warn">⚠️ Setup B — À surveiller · Confirme sur ton graphique TradingView avant d'entrer · Risque réduit conseillé (0.05%)</div>`
+        }
       </div>`;
     } else {
-      h+=`<div class="nosig"><div style="font-size:36px;margin-bottom:8px">⏳</div><div style="color:${D};font-size:14px;font-weight:700">Aucun setup valide détecté</div><div style="color:#1a2e4a;font-size:11px;margin-top:6px">Moins de 3 confirmations — Patience, attends le bon moment</div></div>`;
+      h+=`<div class="nosig"><div style="font-size:36px;margin-bottom:8px">⏳</div><div style="color:${D};font-size:14px;font-weight:700">Aucun setup détecté</div><div style="color:#1a2e4a;font-size:11px;margin-top:6px">Moins de 2 confirmations — Patience</div></div>`;
     }
   }
 
