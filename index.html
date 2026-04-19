@@ -102,7 +102,8 @@ function sig(c){
 async function load(k){
   const inst=INST[k];ld[k]=true;render();
   try{
-    const r=await fetch(`https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(inst.sym)}&interval=15min&outputsize=30&apikey=${K}`);
+    const url=`/api/proxy?symbol=${encodeURIComponent(inst.sym)}&interval=15min&outputsize=30&apikey=${K}`;
+    const r=await fetch(url);
     const j=await r.json();
     if(j.status==="error"||!j.values)throw new Error(j.message||"Erreur API Twelve Data");
     const c=j.values;
