@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>⚡ Ines Trading Signals</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#080c14;font-family:'DM Mono','Courier New',monospace;color:#c9d8f0;min-height:100vh}
+.hdr{background:linear-gradient(180deg,#0c1628,#080c14);border-bottom:1px solid #1a2e4a;padding:14px 18px;display:flex;justify-content:space-between;align-items:center}
+.logo{font-size:9px;font-weight:700;color:#5b9bd5;letter-spacing:4px}
+.title{font-size:17px;font-weight:700;color:#7ec8ff;margin-top:3px}
+.clk{font-size:26px;font-weight:700;color:#7ec8ff;text-align:right}
+.clk-sub{font-size:9px;color:#3a5878;text-align:right;margin-top:2px}
+.tabs{display:flex;background:#0c1220;border-bottom:1px solid #1a2e4a}
+.tab{flex:1;padding:13px 4px;background:transparent;border:none;border-bottom:2px solid transparent;color:#3a5878;cursor:pointer;font-family:'DM Mono',monospace;font-size:11px;letter-spacing:1px;transition:all .2s}
+.tab.active{background:#0e1c30;border-bottom-color:#5b9bd5;color:#7ec8ff}
+.body{padding:14px 16px}
+.sess{border-radius:8px;padding:12px 14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center}
+.sess.on{background:rgba(34,197,94,.08);border:1px solid #22c55e}
+.sess.off{background:rgba(239,68,68,.08);border:1px solid #ef4444}
+.lbl{font-size:8px;color:#3a5878;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px}
+.card{background:#0c1628;border:1px solid #1a2e4a;border-radius:8px;padding:12px}
+.sig-box{border-radius:12px;padding:18px;margin-bottom:14px}
+.nosig{background:#0c1628;border:1px solid #1a2e4a;border-radius:12px;padding:36px;text-align:center;margin-bottom:14px}
+.rules{background:#0c1628;border:1px solid #1a2e4a;border-radius:8px;padding:14px}
+.rg{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:10px;color:#5b9bd5;margin-top:8px}
+.btn{background:transparent;border:1px solid #1a2e4a;border-radius:5px;color:#3a5878;padding:5px 10px;cursor:pointer;font-family:'DM Mono',monospace;font-size:10px}
+.err{background:rgba(239,68,68,.1);border:1px solid #ef4444;border-radius:8px;padding:12px;color:#ef4444;margin-bottom:12px;font-size:11px}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:5px;vertical-align:middle}
+.conf{padding:6px 0;font-size:11px;border-bottom:1px solid #1a2e4a}
+.tip{margin-top:10px;background:rgba(91,155,213,.08);border:1px solid #1a2e4a;border-radius:6px;padding:10px;font-size:10px;color:#5b9bd5}
+.warn{margin-top:10px;background:rgba(239,68,68,.1);border:1px solid #ef4444;border-radius:6px;padding:10px;font-size:10px;color:#ef4444}
+</style>
+</head>
+<body>
+<div class="hdr">
+  <div>
+    <div class="logo">INES TRADING SYSTEM</div>
+    <div class="title">⚡ SIGNAL ASSISTANT v1.0</div>
+  </div>
+  <div>
+    <div class="clk" id="clk">--:--:--</div>
+    <div class="clk-sub" id="upd">Chargement...</div>
+  </div>
+</div>
+<div class="tabs">
+  <button class="tab active" onclick="setTab('XAU/USD')"><span class="dot" id="dXAU" style="background:#3a5878"></span>XAU/USD</button>
+  <button class="tab" onclick="setTab('EUR/USD')"><span class="dot" id="dEUR" style="background:#3a5878"></span>EUR/USD</button>
+  <button class="tab" onclick="setTab('NAS100')"><span class="dot" id="dNAS" style="background:#3a5878"></span>NAS100</button>
+</div>
+<div class="body" id="body"><div style="text-align:center;padding:50px;color:#3a5878">↻ Connexion aux marchés...</div></div>
+
+<script>
+const K="94d877b3c2eb44ed8e79f5a14995440e";
+const INST={
+  "XAU/USD":{sym:"XAU/USD",name:"Or / Gold",sess:[{s:14.5,e:18}],sl:"14h30–18h00 (US)",dec:2,dot:"dXAU"},
+  "EUR/USD":{sym:"EUR/USD",name:"Euro / Dollar",sess:[{s:9,e:11},{s:14.5,e:17}],sl:"9h–11h | 14h30–17h",dec:5,dot:"dEUR"},
+  "NAS100":{sym:"QQQ",name:"Nasdaq (QQQ)",sess:[{s:14.5,e:17}],sl:"14h30–17h00 (US)",dec:2,dot:"dNAS"}
+};
+let cur="XAU/USD",md={},ld={},er={};
+
+function hNow(){const n=new Date();return n.getHours()+n.getMinutes()/60;}
+function inS(s){const h=hNow();return s.some(x=>h>=x.s&&h<x.e);}
+function nxtS(s){
+  const h=hNow();
+  for(const x of s){if(h<x.s){const d=x.s-h,hh=Math.floor(d),mm=Math.round((d-hh)*60);return`Dans ${hh}h${mm>0?mm+'min':''}`}}
+  const d=24-h+s[0].s,hh=Math.floor(d),mm=Math.round((d-hh)*60);return`Demain ${hh}h${mm>0?mm+'min':''}`;
+}
+function f(v,d){return v!=null?v.toFixed(d):'—';}
+function vwap(c){let a=0,b=0;for(const x of c){const t=(+x.high+ +x.low+ +x.close)/3,v=+x.volume||1;a+=t*v;b+=v;}return a/b;}
+function atr(c){const s=c.slice(0,10);return s.reduce((a,x)=>a+(+x.high- +x.low),0)/s.length;}
+function str(c){
+  if(c.length<6)return"RANGE";
+  const H=c.map(x=>+x.high),L=c.map(x=>+x.low);
+  let hh=0,hl=0,ll=0,lh=0;
+  for(let i=1;i<6;i++){if(H[i]>H[i-1])hh++;if(L[i]>L[i-1])hl++;if(L[i]<L[i-1])ll++;if(H[i]<H[i-1])lh++;}
+  if(hh>=2&&hl>=2)return"BULLISH";if(ll>=2&&lh>=2)return"BEARISH";return"RANGE";
+}
+function vol(c){if(c.length<6)return false;const v=c.map(x=>+x.volume||0);const avg=v.slice(1,11).reduce((a,b)=>a+b,0)/10;return v[0]>avg*1.15;}
+function cOk(c){const b=Math.abs(+c.close- +c.open),r=+c.high- +c.low;return r>0&&b/r>0.45;}
+
+function sig(c){
+  if(!c||c.length<12)return null;
+  const p=+c[0].close,V=vwap(c),A=atr(c),S=str(c),vo=vol(c),co=cOk(c[0]),ab=p>V;
+  const rec=c.slice(1,11),rH=Math.max(...rec.map(x=>+x.high)),rL=Math.min(...rec.map(x=>+x.low));
+  const fB=+c[1].high>rH&&p<rH-A*.1,fb=+c[1].low<rL&&p>rL+A*.1;
+  const bB=p>rH-A*.05&&!fB,bS=p<rL+A*.05&&!fb;
+  let d=null,m=null,cf=[];
+  if(fB){d="SELL";m="B";cf=[{ok:true,l:"✅ Fausse cassure haussière détectée"},{ok:true,l:"✅ Rejet au-dessus du niveau clé"},{ok:vo,l:vo?"✅ Volume présent sur le rejet":"⚠️ Volume faible — prudence"},{ok:!ab,l:!ab?"✅ VWAP bias vendeur confirmé":"⚠️ VWAP encore au-dessus"}];}
+  else if(fb){d="BUY";m="B";cf=[{ok:true,l:"✅ Fausse cassure baissière détectée"},{ok:true,l:"✅ Rejet en dessous du niveau clé"},{ok:vo,l:vo?"✅ Volume présent sur le rejet":"⚠️ Volume faible — prudence"},{ok:ab,l:ab?"✅ VWAP bias acheteur confirmé":"⚠️ VWAP encore en dessous"}];}
+  else if(bB){d="BUY";m="A";cf=[{ok:ab,l:ab?"✅ VWAP — Au-dessus (bias acheteur)":"❌ VWAP — En dessous"},{ok:S==="BULLISH",l:S==="BULLISH"?"✅ Structure HH/HL haussière":"❌ Structure — Pas haussière"},{ok:vo,l:vo?"✅ Volume croissant sur la cassure":"❌ Volume — Insuffisant"},{ok:co,l:co?"✅ Bougie propre — Corps plein":"❌ Bougie — Mèches importantes"}];}
+  else if(bS){d="SELL";m="A";cf=[{ok:!ab,l:!ab?"✅ VWAP — En dessous (bias vendeur)":"❌ VWAP — Au-dessus"},{ok:S==="BEARISH",l:S==="BEARISH"?"✅ Structure LH/LL baissière":"❌ Structure — Pas baissière"},{ok:vo,l:vo?"✅ Volume croissant sur la cassure":"❌ Volume — Insuffisant"},{ok:co,l:co?"✅ Bougie propre — Corps plein":"❌ Bougie — Mèches importantes"}];}
+  if(!d)return null;
+  const v=cf.filter(x=>x.ok).length;if(v<3)return null;
+  const sl=A*1.5,tp=sl*1.5;
+  return{d,m,cf,v,p,V,sl:d==="BUY"?p-sl:p+sl,tp:d==="BUY"?p+tp:p-tp};
+}
+
+async function load(k){
+  const inst=INST[k];ld[k]=true;render();
+  try{
+    const r=await fetch(`https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(inst.sym)}&interval=15min&outputsize=30&apikey=${K}`);
+    const j=await r.json();
+    if(j.status==="error"||!j.values)throw new Error(j.message||"Erreur API Twelve Data");
+    const c=j.values;
+    md[k]={p:+c[0].close,V:vwap(c),S:str(c),A:atr(c),sg:sig(c)};
+    er[k]=null;
+    const on=inS(inst.sess);
+    document.getElementById(inst.dot).style.background=on?"#22c55e":"#ef4444";
+  }catch(e){er[k]=e.message;}
+  ld[k]=false;
+  document.getElementById('upd').textContent=`Màj: ${new Date().toLocaleTimeString('fr-BE')} · Auto 3min`;
+  render();
+}
+
+function setTab(k){
+  cur=k;
+  document.querySelectorAll('.tab').forEach((t,i)=>{t.classList.toggle('active',Object.keys(INST)[i]===k);});
+  render();
+}
+
+function render(){
+  const inst=INST[cur],d=md[cur],on=inS(inst.sess),dec=inst.dec;
+  const G="#22c55e",R="#ef4444",B="#7ec8ff",D="#3a5878";
+  let h=`
+  <div class="sess ${on?'on':'off'}">
+    <div>
+      <div class="lbl">Session ${inst.name}</div>
+      <div style="font-weight:700;color:${on?G:R};font-size:12px">${on?"🟢 ACTIVE — TRADING AUTORISÉ":`🔴 FERMÉE — ${nxtS(inst.sess).toUpperCase()}`}</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+      <div style="font-size:9px;color:${D}">${inst.sl}</div>
+      <button class="btn" onclick="load('${cur}')">${ld[cur]?"↻ Chargement...":"↻ Actualiser"}</button>
+    </div>
+  </div>`;
+
+  if(er[cur])h+=`<div class="err">⚠️ ${er[cur]}</div>`;
+  if(ld[cur]&&!d)h+=`<div style="text-align:center;padding:40px;color:${D}">↻ Connexion aux marchés...</div>`;
+
+  if(d){
+    const sc=d.S==="BULLISH"?G:d.S==="BEARISH"?R:"#f59e0b";
+    const vc=d.p>d.V?G:R;
+    h+=`<div class="g3">
+      <div class="card"><div class="lbl">Prix M15</div><div style="font-size:18px;font-weight:700;color:${B}">${f(d.p,dec)}</div></div>
+      <div class="card"><div class="lbl">VWAP</div><div style="font-size:18px;font-weight:700;color:${vc}">${f(d.V,dec)}</div><div style="font-size:9px;color:${vc};margin-top:2px">${d.p>d.V?"▲ ACHETEUR":"▼ VENDEUR"}</div></div>
+      <div class="card"><div class="lbl">Structure</div><div style="font-size:18px;font-weight:700;color:${sc}">${d.S==="BULLISH"?"HH/HL":d.S==="BEARISH"?"LH/LL":"RANGE"}</div><div style="font-size:9px;color:${D};margin-top:2px">${d.S==="BULLISH"?"📈 Haussier":d.S==="BEARISH"?"📉 Baissier":"↔ Range"}</div></div>
+    </div>`;
+
+    if(d.sg){
+      const s=d.sg,buy=s.d==="BUY",dc=buy?G:R;
+      h+=`<div class="sig-box" style="background:${buy?"rgba(34,197,94,.07)":"rgba(239,68,68,.07)"};border:2px solid ${dc}">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
+          <div>
+            <div style="font-size:8px;color:${D};letter-spacing:2px;margin-bottom:3px">SIGNAL · MODE ${s.m} · ${s.v}/4 CONFIRMATIONS</div>
+            <div style="font-size:28px;font-weight:700;color:${dc}">${buy?"⬆ BUY":"⬇ SELL"}</div>
+            <div style="font-size:10px;color:${D};margin-top:2px">${s.m==="A"?"Breakout confirmé":"Fausse cassure — Retournement"}</div>
+          </div>
+          <div style="background:${on?"rgba(34,197,94,.15)":"rgba(239,68,68,.15)"};border:1px solid ${on?G:R};border-radius:8px;padding:6px 10px;font-size:10px;color:${on?G:R}">${on?"✅ En session":"⚠️ Hors session"}</div>
+        </div>
+        <div class="g3">
+          <div style="background:#080c14;border-radius:8px;padding:10px;text-align:center"><div class="lbl">Entrée</div><div style="font-size:16px;font-weight:700;color:${B}">${f(s.p,dec)}</div></div>
+          <div style="background:#080c14;border-radius:8px;padding:10px;text-align:center"><div class="lbl" style="color:${R}">Stop Loss</div><div style="font-size:16px;font-weight:700;color:${R}">${f(s.sl,dec)}</div></div>
+          <div style="background:#080c14;border-radius:8px;padding:10px;text-align:center"><div class="lbl" style="color:${G}">Take Profit</div><div style="font-size:16px;font-weight:700;color:${G}">${f(s.tp,dec)}</div></div>
+        </div>
+        <div style="margin-top:14px"><div class="lbl" style="margin-bottom:6px">Confirmations</div>
+        ${s.cf.map(c=>`<div class="conf" style="color:${c.ok?G:c.l.startsWith("⚠️")?"#f59e0b":R}">${c.l}</div>`).join('')}</div>
+        ${!on?`<div class="warn">⚠️ Signal hors fenêtre — Attends la session pour exécuter sur TradeLocker</div>`:""}
+        <div class="tip">💡 Exécution manuelle sur TradeLocker — Place le SL EN PREMIER toujours</div>
+      </div>`;
+    } else {
+      h+=`<div class="nosig"><div style="font-size:36px;margin-bottom:8px">⏳</div><div style="color:${D};font-size:14px;font-weight:700">Aucun setup valide détecté</div><div style="color:#1a2e4a;font-size:11px;margin-top:6px">Moins de 3 confirmations — Patience, attends le bon moment</div></div>`;
+    }
+  }
+
+  h+=`<div class="rules"><div class="lbl">Règles Top One Trader — Toujours actives</div><div class="rg"><div>📊 Risque: 0.05%</div><div>📊 Max A+: 0.10%</div><div>📊 RR min: 1.5</div><div>🔴 SL en premier</div><div>✂️ TP partiel 1.5</div><div>⏰ 1 trade/jour</div></div></div>`;
+  document.getElementById('body').innerHTML=h;
+}
+
+setInterval(()=>{document.getElementById('clk').textContent=new Date().toLocaleTimeString('fr-BE');},1000);
+Object.keys(INST).forEach(k=>load(k));
+setInterval(()=>Object.keys(INST).forEach(k=>load(k)),180000);
+</script>
+</body>
+</html>
